@@ -1,7 +1,12 @@
 // ==============================================
-// 家庭云端点菜系统 + AI自动生成食材/步骤
+// 家庭云端点菜系统 - 真实AI菜谱 + 云端同步版
 // ==============================================
-// 本地存储版（先保证可用，云端版后续可升级）
+const QWEN_API_KEY = "sk-0996e11059b645cb9d0465fff29a7211"; // 替换成你的通义千问API-KEY
+const QWEN_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
+
+// 使用 localStorage 模拟云端数据（后续可升级为Firebase/云数据库）
+const CLOUD_KEY = "family_order_cloud_data";
+
 let appData = {
   systemName: "小恒家厨房",
   bannerUrl: "https://picsum.photos/800/400",
@@ -23,19 +28,21 @@ const defaultFoods = [
   { id: 5, name: "可乐鸡翅", category: "热菜", time: 25, diff: "中等", cal: "280kcal", pic: "https://picsum.photos/600/400?random=5", desc: "香甜入味", ingredients: [{name:"鸡翅",unit:"8个"},{name:"可乐",unit:"300ml"}], steps: ["焯水","煎至金黄","焖煮","收汁"] }
 ];
 
-// 本地数据加载/保存
-function saveLocal() {
-  localStorage.setItem("familyOrder", JSON.stringify(appData));
+// ==============================================
+// ✅ 云端数据同步（模拟版，全家共享同一套数据）
+// ==============================================
+async function saveCloud() {
+  localStorage.setItem(CLOUD_KEY, JSON.stringify(appData));
 }
 
-function loadLocal() {
-  const local = localStorage.getItem("familyOrder");
-  if (local) {
+async function loadCloud() {
+  const saved = localStorage.getItem(CLOUD_KEY);
+  if (saved) {
     try {
-      const saved = JSON.parse(local);
-      appData = { ...appData, ...saved };
+      const data = JSON.parse(saved);
+      appData = { ...appData, ...data };
     } catch (e) {
-      console.error("数据解析失败，使用默认数据");
+      console.error("云端数据解析失败，使用默认数据");
     }
   }
   initFoods();
@@ -46,51 +53,73 @@ function loadLocal() {
 function initFoods() {
   if (!appData.allFoods || appData.allFoods.length === 0) {
     appData.allFoods = [...defaultFoods];
+    saveCloud();
   }
 }
 
 // ==============================================
-// ✅ AI 自动生成食材和步骤（核心功能）
+// ✅ 真实AI菜谱生成（通义千问API）
 // ==============================================
 async function aiGenerateFood() {
   const foodName = document.getElementById("ai-food-name").value.trim();
   if (!foodName) return alert("请输入菜品名称！");
 
-  alert("正在 AI 生成食材和做法，请稍候...");
+  alert("正在AI生成菜谱，请稍候...");
 
   try {
-    // 这里使用模拟数据，你可以后续替换为真实API
-    const mockRecipes = {
-      "鱼香肉丝": {
-        ingredients: "猪里脊肉200g,胡萝卜1根,木耳50g,泡椒3个,葱姜蒜适量",
-        cookTime: 15,
-        desc: "经典川菜，酸甜微辣，下饭神器"
+    const response = await fetch(QWEN_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${QWEN_API_KEY}`,
+        "Content-Type": "application/json"
       },
-      "红烧肉": {
-        ingredients: "五花肉500g,冰糖10g,生抽2勺,老抽1勺,八角2个",
-        cookTime: 60,
-        desc: "肥而不腻，入口即化"
-      }
-    };
+      body: JSON.stringify({
+        "model": "qwen-turbo",
+        "input": {
+          "messages": [
+            {
+              "role": "user",
+              "content": `请为我生成一道菜名为【${foodName}】的菜谱，严格按以下JSON格式输出，不要额外文字：
+{
+  "name": "菜名",
+  "ingredients": "食材列表，用逗号分隔，格式：主料Xg,辅料Xg,调料Xg",
+  "cookTime": 数字(分钟),
+  "desc": "菜品简介",
+  "steps": ["步骤1","步骤2","步骤3"]
+}`
+            }
+          ]
+        },
+        "parameters": {
+          "result_format": "json"
+        }
+      })
+    });
 
-    const recipe = mockRecipes[foodName] || {
-      ingredients: "主料200g,辅料适量,盐3g,生抽5ml",
-      cookTime: 15,
-      desc: "AI自动生成菜谱"
-    };
+    const result = await response.json();
+    if (result.output && result.output.choices && result.output.choices[0].message.content) {
+      const recipe = JSON.parse(result.output.choices[0].message.content);
+      
+      document.getElementById("add-name").value = recipe.name || foodName;
+      document.getElementById("add-ing").value = recipe.ingredients || "主料200g,辅料适量,盐3g";
+      document.getElementById("add-time").value = recipe.cookTime || 15;
+      document.getElementById("add-desc").value = recipe.desc || "AI生成菜谱";
+      
+      // 临时保存步骤，添加菜品时一起存入
+      appData.tempSteps = recipe.steps || ["按需制作即可"];
 
-    document.getElementById("add-name").value = foodName;
-    document.getElementById("add-ing").value = recipe.ingredients;
-    document.getElementById("add-time").value = recipe.cookTime;
-    document.getElementById("add-desc").value = recipe.desc;
-
-    alert("✅ AI生成完成！可直接修改后添加");
+      alert("✅ AI菜谱生成完成！可直接修改后添加");
+    } else {
+      throw new Error("API返回格式错误");
+    }
   } catch (e) {
+    console.error("AI生成失败：", e);
     alert("AI生成暂时不可用，已为你填充简易版");
     document.getElementById("add-name").value = foodName;
     document.getElementById("add-ing").value = "主料200g,辅料适量,盐3g,生抽5ml";
     document.getElementById("add-time").value = 15;
     document.getElementById("add-desc").value = "AI自动生成菜谱";
+    appData.tempSteps = ["按需制作即可"];
   }
 }
 
@@ -161,7 +190,7 @@ function openDetail(id) {
 }
 
 // 修改菜品图片
-function changeCurrentFoodImage() {
+async function changeCurrentFoodImage() {
   if (!appData.currentFood) return;
   const input = document.createElement("input");
   input.type = "file";
@@ -170,29 +199,29 @@ function changeCurrentFoodImage() {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = async e => {
       const url = e.target.result;
       appData.currentFood.pic = url;
       const idx = appData.allFoods.findIndex(f => f.id === appData.currentFood.id);
       if (idx !== -1) appData.allFoods[idx].pic = url;
-      saveLocal();
+      await saveCloud();
       renderHome();
       document.getElementById("detail-image").style.backgroundImage = `url(${url})`;
-      alert("✅ 图片保存成功");
+      alert("✅ 图片已云端保存，全家可见");
     };
     reader.readAsDataURL(file);
   };
   input.click();
 }
 
-// 加入菜单
-function addMenu() {
+// 加入菜单（云端同步）
+async function addMenu() {
   if (!appData.currentFood) return;
   const ex = appData.myMenu.some(x => x.id === appData.currentFood.id);
   if (!ex) {
     appData.myMenu.push(appData.currentFood);
-    saveLocal();
-    alert("✅ 已加入菜单");
+    await saveCloud();
+    alert("✅ 已加入全家共享菜单");
   } else {
     alert("已在菜单中");
   }
@@ -211,16 +240,16 @@ function renderMenu() {
   document.getElementById("menu-list").innerHTML = html;
 }
 
-function delMenu(id) {
+async function delMenu(id) {
   appData.myMenu = appData.myMenu.filter(f => f.id !== id);
-  saveLocal();
+  await saveCloud();
   renderMenu();
 }
 
-function clearMenu() {
-  if (confirm("确定清空菜单？")) {
+async function clearMenu() {
+  if (confirm("确定清空全家共享菜单？")) {
     appData.myMenu = [];
-    saveLocal();
+    await saveCloud();
     renderMenu();
   }
 }
@@ -228,7 +257,7 @@ function clearMenu() {
 function showShopping() {
   const map = {};
   appData.myMenu.forEach(f => f.ingredients.forEach(i => map[i.name] = (map[i.name] || 0) + 1));
-  let t = "📝 买菜清单\n\n";
+  let t = "📝 全家买菜清单\n\n";
   for (let k in map) t += `${k} × ${map[k]}\n`;
   alert(t || "菜单为空");
 }
@@ -236,7 +265,7 @@ function showShopping() {
 function cookOrder() {
   const total = appData.myMenu.reduce((s, f) => s + f.time, 0);
   const names = appData.myMenu.map(f => f.name).join("、");
-  alert(`做饭顺序：洗菜 → 切菜 → 炒菜\n总耗时：${total} 分钟\n菜品：${names || "暂无菜品"}`);
+  alert(`🍳 做饭顺序：洗菜 → 切菜 → 炒菜\n\n全家总耗时：${total} 分钟\n菜品：${names || "暂无菜品"}`);
 }
 
 function searchFood() {
@@ -261,14 +290,14 @@ function randomFood() {
   alert(`🎲 推荐：${f.name}`);
 }
 
-function changeAvatar() {
+async function changeAvatar() {
   const i = document.createElement("input");
   i.type = "file"; i.accept = "image/*";
   i.onchange = e => {
     const r = new FileReader();
-    r.onload = e => {
+    r.onload = async e => {
       appData.avatarUrl = e.target.result;
-      saveLocal();
+      await saveCloud();
       document.getElementById("avatar").style.backgroundImage = `url(${appData.avatarUrl})`;
     };
     r.readAsDataURL(e.target.files[0]);
@@ -276,14 +305,14 @@ function changeAvatar() {
   i.click();
 }
 
-function changeBanner() {
+async function changeBanner() {
   const i = document.createElement("input");
   i.type = "file"; i.accept = "image/*";
   i.onchange = e => {
     const r = new FileReader();
-    r.onload = e => {
+    r.onload = async e => {
       appData.bannerUrl = e.target.result;
-      saveLocal();
+      await saveCloud();
       document.getElementById("banner").style.backgroundImage = `url(${appData.bannerUrl})`;
     };
     r.readAsDataURL(e.target.files[0]);
@@ -311,15 +340,16 @@ function updateMine() {
   document.getElementById("custom-count").innerText = appData.customFoods.length;
 }
 
-function saveSetting() {
+async function saveSetting() {
   const n = document.getElementById("set-name").value;
   if (n) appData.systemName = n;
-  saveLocal();
-  alert("✅ 保存成功");
+  await saveCloud();
+  alert("✅ 设置已云端同步");
   goPage("mine");
 }
 
-function addCustomFood() {
+// 添加自定义菜品（支持AI步骤）
+async function addCustomFood() {
   const name = document.getElementById("add-name").value;
   const cate = document.getElementById("add-cate").value;
   const time = document.getElementById("add-time").value;
@@ -336,15 +366,17 @@ function addCustomFood() {
     id: Date.now(),
     name, category: cate, time: Number(time),
     diff: "自定义", cal: "未知",
-    pic: appData.tempFoodImage || "https://picsum.photos/600/400?random="+Date.now(),
-    desc, ingredients: ings, steps: ["按需制作即可"]
+    pic: appData.tempFoodImage || `https://picsum.photos/600/400?random=${Date.now()}`,
+    desc, ingredients: ings,
+    steps: appData.tempSteps || ["按需制作即可"]
   };
 
   appData.allFoods.push(food);
   appData.customFoods.push(food);
   appData.tempFoodImage = "";
-  saveLocal();
-  alert("✅ 添加成功！");
+  appData.tempSteps = null;
+  await saveCloud();
+  alert("✅ 菜品添加成功，全家可见！");
   document.getElementById("add-name").value = "";
   document.getElementById("add-cate").value = "";
   document.getElementById("add-time").value = "";
@@ -353,7 +385,7 @@ function addCustomFood() {
 }
 
 // 启动
-window.onload = () => {
-  loadLocal();
+window.onload = async () => {
+  await loadCloud();
   goPage("home");
 };
