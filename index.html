@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>家庭点菜系统</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -12,8 +12,7 @@
 <div id="app" class="app">
   <!-- 首页 -->
   <div id="page-home" class="page active">
-    <div class="banner" id="banner">
-      <div class="banner-overlay"></div>
+    <div class="banner">
       <div class="banner-text">
         <h1 id="system-name">小恒家厨房</h1>
         <p>今天吃什么？</p>
@@ -22,7 +21,6 @@
     <div class="search-bar">
       <input type="text" id="search-input" placeholder="🔍 搜索菜品" oninput="searchFood()">
     </div>
-    <div class="random-btn" onclick="randomFood()">🎲 随机推荐今晚吃什么</div>
     <div class="category-tabs">
       <div class="tab active" onclick="switchTab(0)">主食</div>
       <div class="tab" onclick="switchTab(1)">热菜</div>
@@ -42,9 +40,8 @@
       <div class="detail-info">
         <span>⏱ 时间：<span id="detail-time"></span> 分钟</span>
         <span>📊 难度：<span id="detail-diff"></span></span>
-        <span>🔥 热量：<span id="detail-cal"></span></span>
       </div>
-      <p id="detail-desc" class="detail-desc"></p>
+      <p id="detail-desc"></p>
     </div>
     <div class="detail-card">
       <h3>食材用料</h3>
@@ -54,51 +51,26 @@
       <h3>制作步骤</h3>
       <div id="detail-steps"></div>
     </div>
-
-    <div class="form-item" style="margin:15px;">
+    <div class="form-item">
       <label>📝 点菜备注</label>
-      <input type="text" id="order-remark" placeholder="例如：少辣、不要葱、清淡一点">
+      <input type="text" id="order-remark" placeholder="少辣、不要葱">
     </div>
-
     <div class="btn-group">
       <button class="btn primary" onclick="addMenu()">加入今日菜单</button>
-      <button class="btn outline" onclick="showShopping()">生成买菜清单</button>
     </div>
   </div>
 
   <!-- 我的菜单 -->
   <div id="page-menu" class="page">
     <div class="back" onclick="goPage('home')">← 返回</div>
-    <h2 class="page-title">今日菜单（全家实时同步）</h2>
-    <div class="menu-btn-group">
-      <button class="btn small" onclick="clearMenu()">清空菜单</button>
-      <button class="btn small primary" onclick="cookOrder()">做饭顺序</button>
-      <button class="btn small outline" onclick="showShopping()">买菜清单</button>
-    </div>
-    <div id="menu-list" class="menu-list"></div>
+    <h2 class="page-title">今日菜单</h2>
+    <div id="menu-list"></div>
   </div>
 
-  <!-- 我的页面 -->
+  <!-- 我的 -->
   <div id="page-mine" class="page">
-    <div class="user-card">
-      <div class="avatar" id="avatar" onclick="changeAvatar()"></div>
-      <h3 id="mine-name"></h3>
-      <p>已收藏：<span id="collect-count">0</span> 个</p>
-      <p>自定义菜品：<span id="custom-count">0</span> 个</p>
-    </div>
-    <div class="menu-item" onclick="goPage('setting')">系统设置</div>
+    <h2 class="page-title">我的</h2>
     <div class="menu-item" onclick="goPage('admin')">厨房管理后台</div>
-  </div>
-
-  <!-- 设置 -->
-  <div id="page-setting" class="page">
-    <div class="back" onclick="goPage('mine')">← 返回</div>
-    <h2 class="page-title">系统设置</h2>
-    <div class="form-item">
-      <label>系统名称</label>
-      <input type="text" id="set-name" placeholder="例如：小恒家厨房">
-    </div>
-    <button class="btn primary" onclick="saveSetting()">保存设置</button>
   </div>
 
   <!-- 管理后台 -->
@@ -107,42 +79,36 @@
     <h2 class="page-title">厨房管理后台</h2>
 
     <div class="form-item">
-      <label>🤖 AI 全能生成</label>
-      <input type="text" id="ai-food-name" placeholder="输入菜名，一键全部生成">
-      <button class="btn primary" onclick="aiGenAll()" style="margin-top:8px;width:100%;">AI 一键全部生成</button>
-    </div>
-
-    <div class="form-item">
-      <label>菜品图片（选填）</label>
-      <button class="btn outline" onclick="selectFoodImage()">手动上传菜品图片</button>
-      <p id="food-image-tip" style="font-size:12px;color:#999;margin-top:4px;">未上传自动用AI配图</p>
+      <label>🤖 AI 生成菜谱</label>
+      <input type="text" id="ai-food-name" placeholder="输入菜名">
+      <button class="btn primary" onclick="aiGenAll()">AI 一键生成</button>
     </div>
 
     <div class="form-item">
       <label>菜品名称</label>
-      <input type="text" id="add-name" placeholder="自动生成">
+      <input type="text" id="add-name">
     </div>
     <div class="form-item">
-      <label>自动分类</label>
-      <input type="text" id="add-cate" placeholder="AI自动归类">
+      <label>分类</label>
+      <input type="text" id="add-cate">
     </div>
     <div class="form-item">
       <label>制作时间（分钟）</label>
-      <input type="number" id="add-time" placeholder="自动生成">
+      <input type="number" id="add-time">
     </div>
     <div class="form-item">
-      <label>食材（逗号分隔）</label>
-      <input type="text" id="add-ing" placeholder="自动生成">
+      <label>食材</label>
+      <input type="text" id="add-ing">
     </div>
     <div class="form-item">
-      <label>菜品描述</label>
-      <input type="text" id="add-desc" placeholder="自动生成">
+      <label>描述</label>
+      <input type="text" id="add-desc">
     </div>
 
     <button class="btn primary" onclick="addCustomFood()">添加菜品</button>
   </div>
 
-  <!-- 底部导航（修复：加了 active 切换逻辑） -->
+  <!-- 底部导航（修复版） -->
   <div class="tabbar">
     <div class="tab-item active" onclick="switchTabbar(0)">首页</div>
     <div class="tab-item" onclick="switchTabbar(1)">菜单</div>
