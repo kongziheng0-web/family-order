@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,user-scalable=no">
   <title>家庭点菜系统</title>
   <link rel="stylesheet" href="style.css">
-  <!-- 引入Firebase 不需要你配置 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
@@ -24,7 +23,7 @@
       <input type="text" id="search-input" placeholder="🔍 搜索菜品" oninput="searchFood()">
     </div>
     <div class="random-btn" onclick="randomFood()">🎲 随机推荐今晚吃什么</div>
-    <div class="category-tabs">
+    <div class="category-tabs" id="category-tabs">
       <div class="tab active" onclick="switchTab(0)">主食</div>
       <div class="tab" onclick="switchTab(1)">热菜</div>
       <div class="tab" onclick="switchTab(2)">凉菜</div>
@@ -62,7 +61,7 @@
     </div>
 
     <div class="btn-group">
-      <button class="btn primary" onclick="addMenu()">加入今日菜单</button>
+      <button class="btn primary" id="add-menu-btn" onclick="addMenu()">加入今日菜单</button>
       <button class="btn outline" onclick="changeCurrentFoodImage()">更换菜品图片</button>
       <button class="btn outline" onclick="showShopping()">生成买菜清单</button>
     </div>
@@ -145,7 +144,7 @@
       <input type="text" id="add-desc" placeholder="自动生成">
     </div>
 
-    <button class="btn primary" onclick="addCustomFood()">添加菜品</button>
+    <button class="btn primary" id="add-food-btn" onclick="addCustomFood()">添加菜品</button>
   </div>
 
   <!-- 底部导航 -->
