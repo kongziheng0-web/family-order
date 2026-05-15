@@ -30,6 +30,7 @@
     </div>
     <div class="food-list" id="food-list"></div>
   </div>
+
   <!-- 菜品详情 -->
   <div id="page-detail" class="page">
     <div class="back" onclick="goPage('home')">← 返回</div>
@@ -51,13 +52,21 @@
       <h3>制作步骤</h3>
       <div id="detail-steps"></div>
     </div>
+
+    <!-- 点菜备注 新增 -->
+    <div class="form-item" style="margin:15px;">
+      <label>📝 点菜备注</label>
+      <input type="text" id="order-remark" placeholder="例如：少辣、不要葱、清淡一点">
+    </div>
+
     <div class="btn-group">
       <button class="btn primary" onclick="addMenu()">加入今日菜单</button>
       <button class="btn outline" onclick="changeCurrentFoodImage()">更换菜品图片</button>
       <button class="btn outline" onclick="showShopping()">生成买菜清单</button>
     </div>
   </div>
-  <!-- 我的菜单 -->
+
+  <!-- 我的菜单（显示备注） -->
   <div id="page-menu" class="page">
     <div class="back" onclick="goPage('home')">← 返回</div>
     <h2 class="page-title">今日菜单</h2>
@@ -68,6 +77,7 @@
     </div>
     <div id="menu-list" class="menu-list"></div>
   </div>
+
   <!-- 我的页面 -->
   <div id="page-mine" class="page">
     <div class="user-card">
@@ -79,6 +89,7 @@
     <div class="menu-item" onclick="goPage('setting')">系统设置</div>
     <div class="menu-item" onclick="goPage('admin')">厨房管理后台</div>
   </div>
+
   <!-- 设置 -->
   <div id="page-setting" class="page">
     <div class="back" onclick="goPage('mine')">← 返回</div>
@@ -93,42 +104,48 @@
     </div>
     <button class="btn primary" onclick="saveSetting()">保存设置</button>
   </div>
-  <!-- 管理后台 -->
+
+  <!-- 管理后台：AI生成食材 + 做法 + 自动分类 + 自动图片 -->
   <div id="page-admin" class="page">
     <div class="back" onclick="goPage('mine')">← 返回</div>
     <h2 class="page-title">厨房管理后台</h2>
+
     <div class="form-item">
-      <label>🤖 AI 生成菜谱（输入菜名自动生成食材步骤）</label>
-      <input type="text" id="ai-food-name" placeholder="例如：鱼香肉丝">
-      <button class="btn primary" onclick="aiGenerateFood()" style="margin-top:8px;">AI 一键生成</button>
+      <label>🤖 AI 全能生成（菜名→食材+做法+自动分类+自动图片）</label>
+      <input type="text" id="ai-food-name" placeholder="输入菜名，一键全部生成">
+      <button class="btn primary" onclick="aiGenAll()" style="margin-top:8px;width:100%;">AI 一键全部生成</button>
     </div>
+
     <div class="form-item">
       <label>菜品图片（选填）</label>
-      <button class="btn outline" onclick="selectFoodImage()">上传菜品图片</button>
-      <p id="food-image-tip" style="font-size:12px;color:#999;margin-top:4px;">未上传时会使用默认图片</p>
+      <button class="btn outline" onclick="selectFoodImage()">手动上传菜品图片</button>
+      <p id="food-image-tip" style="font-size:12px;color:#999;margin-top:4px;">未上传自动用AI配图</p>
+    </div>
+
+    <div class="form-item">
+      <label>菜品名称</label>
+      <input type="text" id="add-name" placeholder="自动生成">
     </div>
     <div class="form-item">
-      <label>菜品名称 *</label>
-      <input type="text" id="add-name" placeholder="例如：排骨汤">
+      <label>自动分类</label>
+      <input type="text" id="add-cate" placeholder="AI自动归类">
     </div>
     <div class="form-item">
-      <label>分类 *（主食/热菜/凉菜/汤类/饮料）</label>
-      <input type="text" id="add-cate" placeholder="例如：汤类">
+      <label>制作时间（分钟）</label>
+      <input type="number" id="add-time" placeholder="自动生成">
     </div>
     <div class="form-item">
-      <label>制作时间（分钟）*</label>
-      <input type="number" id="add-time" placeholder="例如：90">
+      <label>食材（逗号分隔）</label>
+      <input type="text" id="add-ing" placeholder="自动生成">
     </div>
     <div class="form-item">
-      <label>食材（用逗号分隔）*</label>
-      <input type="text" id="add-ing" placeholder="排骨500g,玉米1根,姜片3片">
+      <label>菜品描述</label>
+      <input type="text" id="add-desc" placeholder="自动生成">
     </div>
-    <div class="form-item">
-      <label>菜品描述（选填）</label>
-      <input type="text" id="add-desc" placeholder="例如：营养又好喝的排骨汤">
-    </div>
+
     <button class="btn primary" onclick="addCustomFood()">添加菜品</button>
   </div>
+
   <!-- 底部导航 -->
   <div class="tabbar">
     <div class="tab-item active" onclick="goPage('home')"><span>首页</span></div>
@@ -136,7 +153,6 @@
     <div class="tab-item" onclick="goPage('mine')"><span>我的</span></div>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
