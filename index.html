@@ -7,6 +7,48 @@
   <link rel="stylesheet" href="style.css">
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <style>
+    /* 冰箱卡片布局样式 */
+    .fridge-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      padding: 20px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    .fridge-card {
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .fridge-card .delete-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #ff4d4f;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .empty-card {
+      border: 1px dashed #ccc;
+      background: #fafafa;
+    }
+  </style>
 </head>
 <body>
 <div id="app" class="app">
@@ -78,15 +120,15 @@
     <div id="menu-list" class="menu-list"></div>
   </div>
 
-  <!-- 冰箱食材（新增） -->
+  <!-- 冰箱食材（卡片布局版） -->
   <div id="page-fridge" class="page">
     <div class="back" onclick="goPage('home')">← 返回</div>
     <h2 class="page-title">冰箱食材管理</h2>
-    <div class="form-item">
+    <div class="form-item" style="padding:0 20px;">
       <input type="text" id="fridge-item" placeholder="输入食材名称，如：鸡蛋、牛奶">
       <button class="btn primary" onclick="addFridgeItem()">添加食材</button>
     </div>
-    <div id="fridge-list" class="menu-list"></div>
+    <div id="fridge-grid" class="fridge-grid"></div>
   </div>
 
   <!-- 我的页面 -->
