@@ -1,6 +1,7 @@
+// 请替换成你自己的通义千问Key
 const QWEN_API_KEY = "sk-8ac5c826f0f94b64b63c46bc22076353";
-const QWEN_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
 
+// Firebase配置
 const firebaseConfig = {
   apiKey: "AIzaSyA4z0YlH0Z0lYD0xNl0Yt0000000000000",
   authDomain: "family-menu-10086.firebaseapp.com",
@@ -8,11 +9,11 @@ const firebaseConfig = {
   projectId: "family-menu-10086",
   storageBucket: "family-menu-10086.appspot.com"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const cloudRef = db.ref("familyData");
 
+// 全局数据
 let appData = {
   systemName: "小恒家厨房",
   bannerUrl: "https://picsum.photos/800/400",
@@ -48,7 +49,7 @@ function cloudSave() {
   cloudRef.set(appData);
 }
 
-// 云端同步监听（修复：不覆盖 currentFood）
+// 云端监听（修复：不覆盖currentFood）
 cloudRef.on("value", function(snapshot) {
   var data = snapshot.val();
   if (data) {
@@ -76,7 +77,7 @@ function goPage(page) {
   document.getElementById("page-" + page).classList.add("active");
 }
 
-// 底部导航切换（修复：加 active 样式 + 支持4个导航）
+// 底部导航切换
 function switchTabbar(index) {
   document.querySelectorAll(".tabbar .tab-item").forEach((tab, i) => {
     tab.classList.toggle("active", i === index);
@@ -134,7 +135,7 @@ function openDetail(id) {
   goPage("detail");
 }
 
-// ========== 修复：加入菜单、买菜清单函数绑定到全局 ==========
+// ========== 核心按钮函数（绑定全局，保证可点） ==========
 window.addMenu = function() {
   if (!appData.currentFood) {
     alert("❌ 未选中菜品，请先在列表点开菜品");
@@ -146,6 +147,7 @@ window.addMenu = function() {
     appData.myMenu.push({ ...appData.currentFood, remark });
     cloudSave();
     alert("✅ 加入菜单成功！已同步到全家设备");
+    renderMenu();
   } else {
     alert("⚠️ 该菜品已在菜单中");
   }
@@ -159,7 +161,20 @@ window.showShopping = function() {
   alert(text || "菜单为空，没有食材需要购买");
 };
 
-// 渲染菜单（恢复所有按钮）
+window.clearMenu = function() {
+  if (confirm("确定清空菜单？")) {
+    appData.myMenu = [];
+    cloudSave();
+    renderMenu();
+  }
+};
+
+window.cookOrder = function() {
+  let total = appData.myMenu.reduce((s, m) => s + m.time, 0);
+  alert(`总烹饪时间：${total} 分钟`);
+};
+
+// 渲染菜单
 function renderMenu() {
   let html = "";
   appData.myMenu.forEach(m => {
@@ -171,27 +186,47 @@ function renderMenu() {
   document.getElementById("menu-list").innerHTML = html;
 }
 
-// 删除菜单
-function delMenu(id) {
+window.delMenu = function(id) {
   appData.myMenu = appData.myMenu.filter(m => m.id !== id);
   cloudSave();
-}
+  renderMenu();
+};
 
-// 清空菜单（恢复）
-function clearMenu() {
-  if (confirm("确定清空菜单？")) {
-    appData.myMenu = [];
-    cloudSave();
+// ========== 冰箱卡片功能 ==========
+window.addFridgeItem = function() {
+  const itemName = document.getElementById("fridge-item").value.trim();
+  if (!itemName) return alert("请输入食材名称");
+  appData.fridgeItems.push({ id: Date.now(), name: itemName });
+  cloudSave();
+  document.getElementById("fridge-item").value = "";
+  renderFridge();
+};
+
+window.delFridgeItem = function(id) {
+  appData.fridgeItems = appData.fridgeItems.filter(item => item.id !== id);
+  cloudSave();
+  renderFridge();
+};
+
+function renderFridge() {
+  let html = "";
+  appData.fridgeItems.forEach(item => {
+    html += `
+      <div class="fridge-card">
+        ${item.name}
+        <button class="delete-btn" onclick="delFridgeItem(${item.id})">×</button>
+      </div>
+    `;
+  });
+  // 补充空卡片，凑成4列布局
+  const emptyCount = 12 - appData.fridgeItems.length;
+  for (let i = 0; i < emptyCount; i++) {
+    html += `<div class="fridge-card empty-card"></div>`;
   }
+  document.getElementById("fridge-grid").innerHTML = html;
 }
 
-// 做饭顺序（恢复）
-function cookOrder() {
-  let total = appData.myMenu.reduce((s, m) => s + m.time, 0);
-  alert(`总烹饪时间：${total} 分钟`);
-}
-
-// 搜索
+// 其他功能（搜索、随机推荐、AI生成等）
 function searchFood() {
   const key = document.getElementById("search-input").value.toLowerCase();
   const list = appData.allFoods.filter(f => f.name.toLowerCase().includes(key));
@@ -205,13 +240,11 @@ function searchFood() {
   document.getElementById("food-list").innerHTML = html;
 }
 
-// 随机推荐
 function randomFood() {
   const f = appData.allFoods[Math.floor(Math.random() * appData.allFoods.length)];
   alert(`今天吃：${f.name}`);
 }
 
-// AI 生成菜谱（修复：必出时间+可用）
 async function aiGenAll() {
   const foodName = document.getElementById("ai-food-name").value.trim();
   if (!foodName) return alert("❌ 请输入菜名");
@@ -240,14 +273,11 @@ async function aiGenAll() {
     if (!data.output || !data.output.choices) throw new Error("AI返回异常");
 
     const r = JSON.parse(data.output.choices[0].message.content);
-
-    // 强制回填，确保有时间
     document.getElementById("add-name").value = r.name || foodName;
     document.getElementById("add-time").value = r.cookTime || 15;
     document.getElementById("add-ing").value = r.ingredients || "食材适量";
     document.getElementById("add-desc").value = r.desc || "美味家常菜";
     document.getElementById("add-cate").value = getFoodCategory(foodName);
-
     alert("✅ AI生成完成！时间已自动填入");
   } catch (e) {
     console.error("AI错误：", e);
@@ -268,7 +298,6 @@ function getFoodCategory(name) {
   return "热菜";
 }
 
-// 添加菜品
 function addCustomFood() {
   const name = document.getElementById("add-name").value;
   const cate = document.getElementById("add-cate").value;
@@ -295,36 +324,10 @@ function addCustomFood() {
   appData.customFoods.push(food);
   cloudSave();
   alert("✅ 菜品添加成功！已同步");
+  renderHome();
 }
 
-// ========== 新增：冰箱食材管理 ==========
-function addFridgeItem() {
-  const itemName = document.getElementById("fridge-item").value.trim();
-  if (!itemName) return alert("请输入食材名称");
-  appData.fridgeItems.push({ id: Date.now(), name: itemName });
-  cloudSave();
-  document.getElementById("fridge-item").value = "";
-  renderFridge();
-}
-
-function delFridgeItem(id) {
-  appData.fridgeItems = appData.fridgeItems.filter(item => item.id !== id);
-  cloudSave();
-  renderFridge();
-}
-
-function renderFridge() {
-  let html = "";
-  appData.fridgeItems.forEach(item => {
-    html += `<div class="menu-item">
-      ${item.name}
-      <button onclick="delFridgeItem(${item.id})">删除</button>
-    </div>`;
-  });
-  document.getElementById("fridge-list").innerHTML = html || "<p style='text-align:center;color:#999;'>冰箱暂无食材</p>";
-}
-
-// 头像、背景、设置（恢复）
+// 其他辅助函数
 function changeAvatar() { const i = document.createElement("input"); i.type = "file"; i.onchange = e => { const r = new FileReader(); r.onload = e => { appData.avatarUrl = e.target.result; cloudSave(); }; r.readAsDataURL(e.target.files[0]); }; i.click(); }
 function changeBanner() { const i = document.createElement("input"); i.type = "file"; i.onchange = e => { const r = new FileReader(); r.onload = e => { appData.bannerUrl = e.target.result; cloudSave(); }; r.readAsDataURL(e.target.files[0]); }; i.click(); }
 function saveSetting() { const n = document.getElementById("set-name").value; if (n) appData.systemName = n; cloudSave(); alert("✅ 设置已同步"); goPage("mine"); }
