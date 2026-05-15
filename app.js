@@ -21,7 +21,7 @@ let appData = {
   collectList: [],
   customFoods: [],
   allFoods: [],
-  fridgeItems: [], // 新增：冰箱食材
+  fridgeItems: [],
   activeTab: 0,
   currentFood: null
 };
@@ -134,8 +134,8 @@ function openDetail(id) {
   goPage("detail");
 }
 
-// 加入菜单（修复：100%可用）
-function addMenu() {
+// ========== 修复：加入菜单、买菜清单函数绑定到全局 ==========
+window.addMenu = function() {
   if (!appData.currentFood) {
     alert("❌ 未选中菜品，请先在列表点开菜品");
     return;
@@ -149,7 +149,15 @@ function addMenu() {
   } else {
     alert("⚠️ 该菜品已在菜单中");
   }
-}
+};
+
+window.showShopping = function() {
+  let map = {};
+  appData.myMenu.forEach(m => m.ingredients.forEach(i => map[i.name] = (map[i.name] || 0) + 1));
+  let text = "🧾 买菜清单\n";
+  for (let k in map) text += `${k} ×${map[k]}\n`;
+  alert(text || "菜单为空，没有食材需要购买");
+};
 
 // 渲染菜单（恢复所有按钮）
 function renderMenu() {
@@ -175,15 +183,6 @@ function clearMenu() {
     appData.myMenu = [];
     cloudSave();
   }
-}
-
-// 买菜清单（恢复）
-function showShopping() {
-  let map = {};
-  appData.myMenu.forEach(m => m.ingredients.forEach(i => map[i.name] = (map[i.name] || 0) + 1));
-  let text = "🧾 买菜清单\n";
-  for (let k in map) text += `${k} ×${map[k]}\n`;
-  alert(text);
 }
 
 // 做饭顺序（恢复）
