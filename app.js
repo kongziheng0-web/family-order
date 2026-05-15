@@ -47,11 +47,13 @@ function cloudSave() {
   cloudRef.set(appData);
 }
 
-// 云端同步监听
+// 云端同步监听（修复：不覆盖 currentFood）
 cloudRef.on("value", function(snapshot) {
   var data = snapshot.val();
   if (data) {
+    const keepCurrentFood = appData.currentFood;
     appData = data;
+    appData.currentFood = keepCurrentFood;
     renderHome();
     renderMenu();
     updateMine();
@@ -72,7 +74,17 @@ function goPage(page) {
   document.getElementById("page-" + page).classList.add("active");
 }
 
-// 分类切换（修复完成）
+// 底部导航切换（修复：加 active 样式）
+function switchTabbar(index) {
+  document.querySelectorAll(".tabbar .tab-item").forEach((tab, i) => {
+    tab.classList.toggle("active", i === index);
+  });
+  if (index === 0) goPage("home");
+  if (index === 1) goPage("menu");
+  if (index === 2) goPage("mine");
+}
+
+// 分类切换
 function switchTab(index) {
   appData.activeTab = index;
   document.querySelectorAll(".category-tabs .tab").forEach((tab, i) => {
@@ -96,7 +108,7 @@ function renderHome() {
   document.getElementById("system-name").innerText = appData.systemName;
 }
 
-// 打开菜品详情（修复完成）
+// 打开菜品详情
 function openDetail(id) {
   const food = appData.allFoods.find(f => f.id === id);
   if (!food) return;
@@ -119,19 +131,21 @@ function openDetail(id) {
   goPage("detail");
 }
 
-// 加入菜单（修复完成）
+// 加入菜单（修复：不丢 currentFood、强制提示）
 function addMenu() {
   if (!appData.currentFood) {
-    alert("请选择菜品");
+    alert("❌ 未选中菜品，请先在列表点开菜品");
     return;
   }
   const remark = document.getElementById("order-remark").value || "无备注";
   const exist = appData.myMenu.find(m => m.id === appData.currentFood.id);
   if (!exist) {
     appData.myMenu.push({ ...appData.currentFood, remark });
+    cloudSave();
+    alert("✅ 加入菜单成功！已同步到全家设备");
+  } else {
+    alert("⚠️ 该菜品已在菜单中");
   }
-  cloudSave();
-  alert("✅ 已加入菜单，全家同步");
 }
 
 // 渲染菜单
@@ -195,11 +209,11 @@ function randomFood() {
   alert(`今天吃：${f.name}`);
 }
 
-// AI 生成菜谱（修复完成）
+// AI 生成菜谱（修复：必出时间、错误提示、强制回填）
 async function aiGenAll() {
   const foodName = document.getElementById("ai-food-name").value.trim();
-  if (!foodName) return alert("请输入菜名");
-  alert("AI 生成中…");
+  if (!foodName) return alert("❌ 请输入菜名");
+  alert("🤖 AI 生成中，请稍候…");
 
   try {
     const res = await fetch(QWEN_API_URL, {
@@ -213,7 +227,7 @@ async function aiGenAll() {
         input: {
           messages: [{
             role: "user",
-            content: `生成${foodName}菜谱，返回JSON：{"name":"","cookTime":"","ingredients":"","desc":"","steps":[""]}`
+            content: `生成${foodName}标准菜谱，必须包含制作时间（分钟），严格返回JSON：{"name":"","cookTime":"","ingredients":"","desc":"","steps":[""]}`
           }]
         },
         parameters: { result_format: "json" }
@@ -221,20 +235,26 @@ async function aiGenAll() {
     });
 
     const data = await res.json();
+    if (!data.output || !data.output.choices) throw new Error("AI返回异常");
+
     const r = JSON.parse(data.output.choices[0].message.content);
 
+    // 强制回填，确保有时间
     document.getElementById("add-name").value = r.name || foodName;
     document.getElementById("add-time").value = r.cookTime || 15;
-    document.getElementById("add-ing").value = r.ingredients;
-    document.getElementById("add-desc").value = r.desc;
+    document.getElementById("add-ing").value = r.ingredients || "食材适量";
+    document.getElementById("add-desc").value = r.desc || "美味家常菜";
     document.getElementById("add-cate").value = getFoodCategory(foodName);
-    alert("✅ AI 生成完成！");
+
+    alert("✅ AI生成完成！时间已自动填入");
   } catch (e) {
-    alert("AI 生成异常，已自动填充");
+    console.error("AI错误：", e);
+    alert("⚠️ AI生成失败，已自动填充默认值，请手动补全");
     document.getElementById("add-name").value = foodName;
     document.getElementById("add-time").value = 15;
-    document.getElementById("add-ing").value = "食材按需";
+    document.getElementById("add-ing").value = "食材适量";
     document.getElementById("add-desc").value = "美味家常菜";
+    document.getElementById("add-cate").value = getFoodCategory(foodName);
   }
 }
 
@@ -253,7 +273,7 @@ function addCustomFood() {
   const time = document.getElementById("add-time").value;
   const ingText = document.getElementById("add-ing").value;
   const desc = document.getElementById("add-desc").value;
-  if (!name || !cate || !time || !ingText) return alert("请填完整信息");
+  if (!name || !cate || !time || !ingText) return alert("❌ 请填完整信息");
 
   const ings = ingText.split(",").map(t => ({
     name: t.replace(/[0-9g个ml]/g, "").trim(),
@@ -272,7 +292,7 @@ function addCustomFood() {
   appData.allFoods.push(food);
   appData.customFoods.push(food);
   cloudSave();
-  alert("✅ 菜品添加成功！");
+  alert("✅ 菜品添加成功！已同步");
 }
 
 // 头像、背景、设置
