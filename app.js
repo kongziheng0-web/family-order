@@ -2,7 +2,7 @@
 const QWEN_API_KEY = "sk-0996e11059b645cb9d0465fff29a7211";
 const QWEN_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
 
-// 固定云端数据库（我已经配置好，你不用动）
+// 固定云端数据库
 const firebaseConfig = {
   apiKey: "AIzaSyBCkqQk1H9X9t5Z7X7Z7X7Z7X7Z7X9Z7X9",
   authDomain: "family-menu-sync.firebaseapp.com",
@@ -162,23 +162,29 @@ function switchTab(i) {
   renderHome();
 }
 
+// 修复后的openDetail函数，现在能正常打开菜品了
 function openDetail(id) {
   const food = appData.allFoods.find(f => f.id === id);
   if (!food) return;
   appData.currentFood = food;
+  
   document.getElementById("detail-image").style.backgroundImage = "url("+food.pic+")";
   document.getElementById("detail-name").innerText = food.name;
   document.getElementById("detail-time").innerText = food.time;
   document.getElementById("detail-diff").innerText = food.diff;
   document.getElementById("detail-cal").innerText = food.cal;
   document.getElementById("detail-desc").innerText = food.desc;
-  let ing = "";
-  food.ingredients.forEach(i => ing += '<div class="ing-item"><span>'+i.name+'</span><span>'+i.unit+'</span></div>');
-  document.getElementById("detail-ing").innerHTML = ing;
-  let step = "";
-  food.steps.forEach((s, i) => step += '<div class="step-item">'+(i+1)+'. '+s+'</div>');
-  document.getElementById("detail-steps").innerHTML = step;
+  
+  let ingHtml = "";
+  food.ingredients.forEach(i => ingHtml += '<div class="ing-item"><span>'+i.name+'</span><span>'+i.unit+'</span></div>');
+  document.getElementById("detail-ing").innerHTML = ingHtml;
+  
+  let stepHtml = "";
+  food.steps.forEach((s, i) => stepHtml += '<div class="step-item">'+(i+1)+'. '+s+'</div>');
+  document.getElementById("detail-steps").innerHTML = stepHtml;
+  
   document.getElementById("order-remark").value = "";
+  goPage("detail");
 }
 
 function addMenu() {
