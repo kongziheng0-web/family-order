@@ -142,11 +142,11 @@
     <button class="btn primary" onclick="addCustomFood()">添加菜品</button>
   </div>
 
-  <!-- 底部导航 -->
+  <!-- 底部导航（修复：加了 active 切换逻辑） -->
   <div class="tabbar">
-    <div class="tab-item active" onclick="goPage('home')"><span>首页</span></div>
-    <div class="tab-item" onclick="goPage('menu')"><span>菜单</span></div>
-    <div class="tab-item" onclick="goPage('mine')"><span>我的</span></div>
+    <div class="tab-item active" onclick="switchTabbar(0)">首页</div>
+    <div class="tab-item" onclick="switchTabbar(1)">菜单</div>
+    <div class="tab-item" onclick="switchTabbar(2)">我的</div>
   </div>
 </div>
 <script src="app.js"></script>
