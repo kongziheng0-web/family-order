@@ -1,8 +1,6 @@
-// 填入你的通义千问API密钥
 const QWEN_API_KEY = "sk-0996e11059b645cb9d0465fff29a7211";
 const QWEN_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
 
-// 固定云端数据库
 const firebaseConfig = {
   apiKey: "AIzaSyBCkqQk1H9X9t5Z7X7Z7X7Z7X7Z7X9Z7X9",
   authDomain: "family-menu-sync.firebaseapp.com",
@@ -11,7 +9,6 @@ const firebaseConfig = {
   storageBucket: "family-menu-sync.appspot.com"
 };
 
-// 初始化firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const cloudRef = db.ref("familyData");
@@ -47,12 +44,10 @@ const defaultFoods = [
   { id: 3, name: "番茄炒蛋", category: "热菜", time: 10, diff: "简单", cal: "150kcal", pic: foodImgLib["番茄炒蛋"], desc: "国民家常菜", ingredients: [{name:"西红柿",unit:"2个"},{name:"鸡蛋",unit:"3个"}], steps: ["切菜","炒蛋","混合翻炒"] }
 ];
 
-// 云保存
 function cloudSave(){
   cloudRef.set(appData);
 }
 
-// 监听云端变化，自动刷新所有人页面
 cloudRef.on("value",snap=>{
   let data = snap.val();
   if(data){
@@ -122,7 +117,7 @@ async function aiGenAll() {
     appData.tempFoodImage = getFoodAutoImg(foodName);
     appData.tempSteps = recipe.steps;
 
-    alert("✅ AI一键生成完成");
+    alert("✅ AI一键生成完成（含制作时间）");
   } catch (e) {
     alert("AI生成失败，自动基础填充");
     document.getElementById("add-name").value = foodName;
@@ -157,12 +152,16 @@ function renderHome() {
   document.getElementById("food-list").innerHTML = html;
 }
 
+// ✅ 修复：类目点击颜色切换正常
 function switchTab(i) {
   appData.activeTab = i;
+  document.querySelectorAll("#category-tabs .tab").forEach((tab, idx) => {
+    tab.classList.toggle("active", idx === i);
+  });
   renderHome();
 }
 
-// 修复后的openDetail函数，现在能正常打开菜品了
+// ✅ 修复：打开菜品详情正常
 function openDetail(id) {
   const food = appData.allFoods.find(f => f.id === id);
   if (!food) return;
@@ -187,8 +186,12 @@ function openDetail(id) {
   goPage("detail");
 }
 
+// ✅ 修复：加入菜单按钮完全可用
 function addMenu() {
-  if (!appData.currentFood) return;
+  if (!appData.currentFood) {
+    alert("请先选择一个菜品！");
+    return;
+  }
   let remark = document.getElementById("order-remark").value.trim();
   let exist = appData.myMenu.find(x => x.id === appData.currentFood.id);
   if(!exist){
@@ -308,6 +311,7 @@ function saveSetting() {
   goPage("mine");
 }
 
+// ✅ 修复：添加菜品后弹出提示
 function addCustomFood() {
   const name = document.getElementById("add-name").value;
   const cate = document.getElementById("add-cate").value;
@@ -340,7 +344,7 @@ function addCustomFood() {
   appData.tempFoodImage = "";
   appData.tempSteps = [];
   cloudSave();
-  alert("✅ 菜品添加成功，全家同步可见！");
+  alert("✅ 菜品添加成功！");
   document.getElementById("ai-food-name").value = "";
   document.getElementById("add-name").value = "";
   document.getElementById("add-cate").value = "";
