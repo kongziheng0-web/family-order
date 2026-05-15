@@ -1,4 +1,4 @@
-const QWEN_API_KEY = "你自己的通义千问API密钥";
+const QWEN_API_KEY = "sk-0996e11059b645cb9d0465fff29a7211";
 const QWEN_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
 
 const firebaseConfig = {
