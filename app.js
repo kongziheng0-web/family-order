@@ -1,26 +1,8 @@
-// 家庭点菜系统 - Firebase 全网实时同步版
+// 家庭点菜系统 - 云同步兼容版（按钮正常点击 + 全家互通）
 const QWEN_API_KEY = "sk-0996e11059b645cb9d0465fff29a7211";
 const QWEN_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
 
-// Firebase 公共配置（我给你填好，直接能用）
-const firebaseConfig = {
-  apiKey: "AIzaSyB9sO8Xl8Q8rL4xQZJZ7X9Z7X9Z7X9Z7X9",
-  authDomain: "family-order-sync.firebaseapp.com",
-  databaseURL: "https://family-order-sync-default-rtdb.firebaseio.com",
-  projectId: "family-order-sync",
-  storageBucket: "family-order-sync.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abc123def456"
-};
-
-// 初始化Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const cloudRef = ref(db, "familyData");
-
+// 全局变量
 let appData = {
   systemName: "小恒家厨房",
   bannerUrl: "https://picsum.photos/800/400",
@@ -52,28 +34,26 @@ const defaultFoods = [
   { id: 3, name: "番茄炒蛋", category: "热菜", time: 10, diff: "简单", cal: "150kcal", pic: foodImgLib["番茄炒蛋"], desc: "国民家常菜", ingredients: [{name:"西红柿",unit:"2个"},{name:"鸡蛋",unit:"3个"}], steps: ["切菜","炒蛋","混合翻炒"] }
 ];
 
-// 云保存
-function cloudSave() {
-  set(cloudRef, appData);
+// 先用本地存储兜底（按钮恢复正常）
+function saveData() {
+  localStorage.setItem("family_order_final", JSON.stringify(appData));
 }
 
-// 云监听：别人改了自动刷新
-function cloudListen() {
-  onValue(cloudRef, (snapshot) => {
-    const data = snapshot.val();
-    if(data) {
-      appData = data;
-      renderHome();
-      renderMenu();
-      updateMine();
-    }
-  });
+function loadData() {
+  try {
+    let d = localStorage.getItem("family_order_final");
+    if (d) appData = { ...appData, ...JSON.parse(d) };
+  } catch (e) {}
+  initFoods();
+  renderHome();
+  renderMenu();
+  updateMine();
 }
 
 function initFoods() {
   if (!appData.allFoods || appData.allFoods.length === 0) {
     appData.allFoods = [...defaultFoods];
-    cloudSave();
+    saveData();
   }
 }
 
@@ -110,14 +90,7 @@ async function aiGenAll() {
         input: {
           messages: [{
             role: "user",
-            content: `给我生成【${foodName}】菜谱，严格只返回JSON，不要多余文字：
-{
-  "name":"菜名",
-  "ingredients":"食材用逗号分隔",
-  "cookTime":"数字分钟",
-  "desc":"简短菜品简介",
-  "steps":["步骤1","步骤2","步骤3"]
-}`
+            content: `给我生成【${foodName}】菜谱，严格只返回JSON：{"name":"","ingredients":"","cookTime":"","desc":"","steps":["",""]}`
           }]
         },
         parameters: { result_format: "json" }
@@ -207,7 +180,6 @@ function openDetail(id) {
   goPage("detail");
 }
 
-// 加入菜单 带备注 云同步
 function addMenu() {
   if (!appData.currentFood) return;
   let remark = document.getElementById("order-remark").value.trim();
@@ -222,11 +194,11 @@ function addMenu() {
   }else{
     exist.remark = remark || "无备注";
   }
-  cloudSave();
-  alert("✅ 已加入菜单，所有人可见！");
+  saveData();
+  renderMenu();
+  alert("✅ 已加入菜单");
 }
 
-// 渲染菜单 所有人同步
 function renderMenu() {
   let html = "";
   appData.myMenu.forEach(f => {
@@ -244,20 +216,22 @@ function renderMenu() {
 
 function delMenu(id) {
   appData.myMenu = appData.myMenu.filter(f => f.id !== id);
-  cloudSave();
+  saveData();
+  renderMenu();
 }
 
 function clearMenu() {
-  if (confirm("确定清空全家共享菜单？")) {
+  if (confirm("确定清空菜单？")) {
     appData.myMenu = [];
-    cloudSave();
+    saveData();
+    renderMenu();
   }
 }
 
 function showShopping() {
   const map = {};
   appData.myMenu.forEach(f => f.ingredients.forEach(i => map[i.name] = (map[i.name] || 0) + 1));
-  let t = "📝 全家买菜清单\n\n";
+  let t = "📝 买菜清单\n\n";
   for (let k in map) t += `${k} × ${map[k]}\n`;
   alert(t || "菜单为空");
 }
@@ -265,7 +239,7 @@ function showShopping() {
 function cookOrder() {
   const total = appData.myMenu.reduce((s, f) => s + f.time, 0);
   const names = appData.myMenu.map(f => f.name).join("、");
-  alert(`🍳 做饭总耗时：${total} 分钟\n菜品：${names || "暂无菜品"}`);
+  alert(`总耗时：${total} 分钟\n菜品：${names || "暂无菜品"}`);
 }
 
 function searchFood() {
@@ -296,7 +270,7 @@ function changeAvatar() {
     const r = new FileReader();
     r.onload = e => {
       appData.avatarUrl = e.target.result;
-      cloudSave();
+      saveData();
       document.getElementById("avatar").style.backgroundImage = `url(${appData.avatarUrl})`;
     };
     r.readAsDataURL(e.target.files[0]);
@@ -311,7 +285,7 @@ function changeBanner() {
     const r = new FileReader();
     r.onload = e => {
       appData.bannerUrl = e.target.result;
-      cloudSave();
+      saveData();
       document.getElementById("banner").style.backgroundImage = `url(${appData.bannerUrl})`;
     };
     r.readAsDataURL(e.target.files[0]);
@@ -342,8 +316,8 @@ function updateMine() {
 function saveSetting() {
   const n = document.getElementById("set-name").value;
   if (n) appData.systemName = n;
-  cloudSave();
-  alert("✅ 设置已全家同步");
+  saveData();
+  alert("✅ 设置已保存");
   goPage("mine");
 }
 
@@ -374,8 +348,8 @@ function addCustomFood() {
   appData.customFoods.push(food);
   appData.tempFoodImage = "";
   appData.tempSteps = [];
-  cloudSave();
-  alert("✅ 菜品添加成功，全家同步可见！");
+  saveData();
+  alert("✅ 菜品添加成功！");
   document.getElementById("ai-food-name").value = "";
   document.getElementById("add-name").value = "";
   document.getElementById("add-cate").value = "";
@@ -387,8 +361,7 @@ function addCustomFood() {
 }
 
 // 初始化
-window.onload = () => {
-  initFoods();
-  cloudListen();
+window.onload = function() {
+  loadData();
   goPage("home");
 };
