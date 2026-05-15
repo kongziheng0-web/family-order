@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,user-scalable=no">
   <title>家庭点菜系统</title>
   <link rel="stylesheet" href="style.css">
+  <!-- 引入Firebase -->
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
 </head>
 <body>
 <div id="app" class="app">
@@ -53,7 +56,6 @@
       <div id="detail-steps"></div>
     </div>
 
-    <!-- 点菜备注 新增 -->
     <div class="form-item" style="margin:15px;">
       <label>📝 点菜备注</label>
       <input type="text" id="order-remark" placeholder="例如：少辣、不要葱、清淡一点">
@@ -66,10 +68,10 @@
     </div>
   </div>
 
-  <!-- 我的菜单（显示备注） -->
+  <!-- 我的菜单 -->
   <div id="page-menu" class="page">
     <div class="back" onclick="goPage('home')">← 返回</div>
-    <h2 class="page-title">今日菜单</h2>
+    <h2 class="page-title">今日菜单（全家共享）</h2>
     <div class="menu-btn-group">
       <button class="btn small" onclick="clearMenu()">清空菜单</button>
       <button class="btn small primary" onclick="cookOrder()">做饭顺序</button>
@@ -105,13 +107,13 @@
     <button class="btn primary" onclick="saveSetting()">保存设置</button>
   </div>
 
-  <!-- 管理后台：AI生成食材 + 做法 + 自动分类 + 自动图片 -->
+  <!-- 管理后台 -->
   <div id="page-admin" class="page">
     <div class="back" onclick="goPage('mine')">← 返回</div>
     <h2 class="page-title">厨房管理后台</h2>
 
     <div class="form-item">
-      <label>🤖 AI 全能生成（菜名→食材+做法+自动分类+自动图片）</label>
+      <label>🤖 AI 全能生成</label>
       <input type="text" id="ai-food-name" placeholder="输入菜名，一键全部生成">
       <button class="btn primary" onclick="aiGenAll()" style="margin-top:8px;width:100%;">AI 一键全部生成</button>
     </div>
@@ -153,6 +155,6 @@
     <div class="tab-item" onclick="goPage('mine')"><span>我的</span></div>
   </div>
 </div>
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
