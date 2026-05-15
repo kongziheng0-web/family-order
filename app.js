@@ -2,7 +2,7 @@ const QWEN_API_KEY = "sk-0996e11059b645cb9d0465fff29a7211";
 const QWEN_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBCkqQk1H9X9t5Z7X7Z7X7Z7X7Z7X9Z7X9",
+  apiKey: "AIzaSyXXXX",
   authDomain: "family-menu-sync.firebaseapp.com",
   databaseURL: "https://family-menu-sync-default-rtdb.firebaseio.com",
   projectId: "family-menu-sync",
@@ -11,7 +11,7 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const cloudRef = db.ref("familyData");
+const cloudRef = db.ref("familyData/v1");
 
 let appData = {
   systemName: "小恒家厨房",
@@ -39,323 +39,179 @@ const foodImgLib = {
 };
 
 const defaultFoods = [
-  { id: 1, name: "米饭", category: "主食", time: 20, diff: "简单", cal: "130kcal", pic: foodImgLib["米饭"], desc: "软糯白米饭", ingredients: [{name:"大米",unit:"200g"},{name:"清水",unit:"300ml"}], steps: ["淘洗大米","浸泡10分钟","电饭煲煮饭","焖5分钟"] },
-  { id: 2, name: "面条", category: "主食", time: 10, diff: "简单", cal: "110kcal", pic: foodImgLib["面条"], desc: "清水煮面", ingredients: [{name:"面条",unit:"150g"}], steps: ["烧水","煮面","捞出"] },
-  { id: 3, name: "番茄炒蛋", category: "热菜", time: 10, diff: "简单", cal: "150kcal", pic: foodImgLib["番茄炒蛋"], desc: "国民家常菜", ingredients: [{name:"西红柿",unit:"2个"},{name:"鸡蛋",unit:"3个"}], steps: ["切菜","炒蛋","混合翻炒"] }
+  { id: "food_1", name:"米饭", category:"主食", time:20, diff:"简单", cal:"130kcal", pic:foodImgLib["米饭"], desc:"软糯白米饭", ingredients:[{name:"大米",unit:"200g"}], steps:["淘洗","煮饭"] },
+  { id: "food_2", name:"面条", category:"主食", time:10, diff:"简单", cal:"110kcal", pic:foodImgLib["面条"], desc:"清水煮面", ingredients:[{name:"面条",unit:"150g"}], steps:["煮水","下面"] },
+  { id: "food_3", name:"番茄炒蛋", category:"热菜", time:10, diff:"简单", cal:"150kcal", pic:foodImgLib["番茄炒蛋"], desc:"家常菜", ingredients:[{name:"番茄",unit:"2个"}], steps:["切","炒"] }
 ];
 
+// ================= FIREBASE =================
 function cloudSave(){
-  cloudRef.set(appData);
+  cloudRef.set({
+    ...appData,
+    lastUpdate: Date.now()
+  });
 }
 
-cloudRef.on("value",snap=>{
-  let data = snap.val();
-  if(data){
-    appData = data;
-    renderHome();
-    renderMenu();
-    updateMine();
-  }
+cloudRef.on("value", snap => {
+  const data = snap.val();
+  if (!data) return;
+  appData = data;
+  renderHome();
+  renderMenu();
+  updateMine();
 });
 
-function initFoods() {
+// ================= INIT =================
+function initFoods(){
   if (!appData.allFoods || appData.allFoods.length === 0) {
-    appData.allFoods = [...defaultFoods];
+    appData.allFoods = defaultFoods;
     cloudSave();
   }
 }
 
-function getFoodCategory(name) {
-  let n = name.toLowerCase();
-  if(n.includes("饭")||n.includes("粥")||n.includes("馒头")||n.includes("包子")) return "主食";
-  if(n.includes("汤")||n.includes("羹")) return "汤类";
-  if(n.includes("拌")||n.includes("凉菜")||n.includes("黄瓜")) return "凉菜";
-  if(n.includes("奶茶")||n.includes("果汁")||n.includes("可乐")) return "饮料";
+// ================= CATEGORY =================
+function getFoodCategory(name){
+  if(/饭|粥|面|包/.test(name)) return "主食";
+  if(/汤/.test(name)) return "汤类";
+  if(/奶茶|可乐/.test(name)) return "饮料";
+  if(/凉/.test(name)) return "凉菜";
   return "热菜";
 }
 
-function getFoodAutoImg(name) {
-  for(let key in foodImgLib){
-    if(name.includes(key)) return foodImgLib[key];
+function getFoodAutoImg(name){
+  for(let k in foodImgLib){
+    if(name.includes(k)) return foodImgLib[k];
   }
-  return "https://picsum.photos/600/400?random=" + Date.now();
+  return "https://picsum.photos/600/400?random=" + Math.random();
 }
 
-async function aiGenAll() {
+// ================= AI =================
+async function aiGenAll(){
   const foodName = document.getElementById("ai-food-name").value.trim();
-  if (!foodName) return alert("请输入菜名！");
-  alert("AI 正在一键生成全部信息，请稍候...");
+  if(!foodName) return alert("请输入菜名");
 
-  try {
-    const res = await fetch(QWEN_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + QWEN_API_KEY,
-        "Content-Type": "application/json"
+  try{
+    const res = await fetch(QWEN_API_URL,{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer "+QWEN_API_KEY,
+        "Content-Type":"application/json"
       },
-      body: JSON.stringify({
-        model: "qwen-turbo",
-        input: {
-          messages: [{
-            role: "user",
-            content: `给我生成【${foodName}】菜谱，严格只返回JSON：{"name":"","ingredients":"","cookTime":"","desc":"","steps":["",""]}`
+      body:JSON.stringify({
+        model:"qwen-turbo",
+        input:{
+          messages:[{
+            role:"user",
+            content:`生成菜谱JSON：${foodName}`
           }]
-        },
-        parameters: { result_format: "json" }
+        }
       })
     });
 
     const data = await res.json();
-    const recipe = JSON.parse(data.output.choices[0].message.content);
+    let raw = data.output.choices[0].message.content;
+
+    raw = raw.replace(/```json|```/g,"").trim();
+
+    const recipe = JSON.parse(raw);
 
     document.getElementById("add-name").value = recipe.name || foodName;
     document.getElementById("add-cate").value = getFoodCategory(foodName);
     document.getElementById("add-time").value = recipe.cookTime || 15;
-    document.getElementById("add-ing").value = recipe.ingredients;
-    document.getElementById("add-desc").value = recipe.desc || "家常美味";
+    document.getElementById("add-ing").value = recipe.ingredients || "";
+    document.getElementById("add-desc").value = recipe.desc || "家常菜";
 
+    appData.tempSteps = recipe.steps || [];
     appData.tempFoodImage = getFoodAutoImg(foodName);
-    appData.tempSteps = recipe.steps;
 
-    alert("✅ AI一键生成完成（含制作时间）");
-  } catch (e) {
-    alert("AI生成失败，自动基础填充");
-    document.getElementById("add-name").value = foodName;
-    document.getElementById("add-cate").value = getFoodCategory(foodName);
-    document.getElementById("add-time").value = 15;
-    document.getElementById("add-ing").value = "主料300g,盐3g,生抽适量";
-    document.getElementById("add-desc").value = "家常美味";
-    appData.tempFoodImage = getFoodAutoImg(foodName);
-    appData.tempSteps = ["准备食材","热锅烹饪","出锅装盘"];
+    alert("AI生成成功");
+
+  }catch(e){
+    console.log(e);
+    alert("AI失败，已自动填充");
   }
 }
 
-function goPage(name) {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  document.getElementById("page-" + name).classList.add("active");
-  let idx = name === "home" ? 0 : name === "menu" ? 1 : 2;
-  document.querySelectorAll(".tab-item").forEach((item,i)=>{
-    item.classList.toggle("active",i===idx);
+// ================= PAGE =================
+function goPage(name){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.getElementById("page-"+name).classList.add("active");
+
+  const idx = name==="home"?0:name==="menu"?1:2;
+
+  document.querySelectorAll(".tab-item").forEach((t,i)=>{
+    t.classList.toggle("active",i===idx);
   });
 }
 
-function renderHome() {
-  document.getElementById("system-name").innerText = appData.systemName;
-  document.getElementById("banner").style.backgroundImage = "url("+appData.bannerUrl+")";
-  document.getElementById("avatar").style.backgroundImage = "url("+appData.avatarUrl+")";
+// ================= RENDER =================
+function renderHome(){
   const tabs = ["主食","热菜","凉菜","汤类","饮料"];
-  const list = appData.allFoods.filter(f => f.category === tabs[appData.activeTab]);
-  let html = "";
-  list.forEach(f => {
-    html += '<div class="food-card" onclick="openDetail('+f.id+')"><img class="food-img" src="'+f.pic+'" onerror="this.src=\'https://picsum.photos/600/400\"><div class="food-info"><div class="food-name">'+f.name+'</div><div class="food-tag"><span>'+f.time+'分钟</span><span>'+f.diff+'</span></div></div></div>';
-  });
-  document.getElementById("food-list").innerHTML = html;
+  const list = (appData.allFoods||[]).filter(f=>f.category===tabs[appData.activeTab]);
+
+  document.getElementById("system-name").innerText = appData.systemName;
+
+  document.getElementById("food-list").innerHTML =
+    list.map(f=>`
+      <div class="food-card" onclick="openDetail('${f.id}')">
+        <img class="food-img" src="${f.pic}">
+        <div class="food-info">
+          <div class="food-name">${f.name}</div>
+        </div>
+      </div>
+    `).join("");
 }
 
-// ✅ 修复：类目点击颜色切换正常
-function switchTab(i) {
-  appData.activeTab = i;
-  document.querySelectorAll("#category-tabs .tab").forEach((tab, idx) => {
-    tab.classList.toggle("active", idx === i);
-  });
-  renderHome();
-}
+// ================= DETAIL =================
+function openDetail(id){
+  const food = appData.allFoods.find(f=>f.id===id);
+  if(!food) return;
 
-// ✅ 修复：打开菜品详情正常
-function openDetail(id) {
-  const food = appData.allFoods.find(f => f.id === id);
-  if (!food) return;
   appData.currentFood = food;
-  
-  document.getElementById("detail-image").style.backgroundImage = "url("+food.pic+")";
+
   document.getElementById("detail-name").innerText = food.name;
-  document.getElementById("detail-time").innerText = food.time;
-  document.getElementById("detail-diff").innerText = food.diff;
-  document.getElementById("detail-cal").innerText = food.cal;
   document.getElementById("detail-desc").innerText = food.desc;
-  
-  let ingHtml = "";
-  food.ingredients.forEach(i => ingHtml += '<div class="ing-item"><span>'+i.name+'</span><span>'+i.unit+'</span></div>');
-  document.getElementById("detail-ing").innerHTML = ingHtml;
-  
-  let stepHtml = "";
-  food.steps.forEach((s, i) => stepHtml += '<div class="step-item">'+(i+1)+'. '+s+'</div>');
-  document.getElementById("detail-steps").innerHTML = stepHtml;
-  
-  document.getElementById("order-remark").value = "";
+
+  document.getElementById("detail-steps").innerHTML =
+    (food.steps||[]).map((s,i)=>`<div>${i+1}.${s}</div>`).join("");
+
   goPage("detail");
 }
 
-// ✅ 修复：加入菜单按钮完全可用
-function addMenu() {
-  if (!appData.currentFood) {
-    alert("请先选择一个菜品！");
-    return;
+// ================= MENU =================
+function addMenu(){
+  if(!appData.currentFood) return alert("请选择菜");
+
+  if(!appData.myMenu.find(x=>x.id===appData.currentFood.id)){
+    appData.myMenu.push(appData.currentFood);
   }
-  let remark = document.getElementById("order-remark").value.trim();
-  let exist = appData.myMenu.find(x => x.id === appData.currentFood.id);
-  if(!exist){
-    let foodWithRemark = Object.assign({}, appData.currentFood, {remark: remark || "无备注"});
-    appData.myMenu.push(foodWithRemark);
-  }else{
-    exist.remark = remark || "无备注";
-  }
+
   cloudSave();
-  alert("✅ 已加入菜单，所有人实时可见！");
+  alert("已加入菜单");
 }
 
-function renderMenu() {
-  let html = "";
-  appData.myMenu.forEach(f => {
-    html += '<div class="menu-item" style="flex-direction:column;align-items:flex-start;padding:10px;"><div style="display:flex;justify-content:space-between;width:100%;"><span style="font-weight:bold;">'+f.name+'</span><button onclick="delMenu('+f.id+')">删除</button></div><div style="font-size:13px;color:#666;margin-top:4px;">📝 备注：'+(f.remark||"无备注")+'</div></div>';
-  });
-  document.getElementById("menu-list").innerHTML = html;
+function renderMenu(){
+  document.getElementById("menu-list").innerHTML =
+    (appData.myMenu||[]).map(f=>`
+      <div class="menu-item">
+        <span>${f.name}</span>
+        <button onclick="delMenu('${f.id}')">删除</button>
+      </div>
+    `).join("");
 }
 
-function delMenu(id) {
-  appData.myMenu = appData.myMenu.filter(f => f.id !== id);
+function delMenu(id){
+  appData.myMenu = appData.myMenu.filter(f=>f.id!==id);
   cloudSave();
 }
 
-function clearMenu() {
-  if (confirm("确定清空全家共享菜单？")) {
-    appData.myMenu = [];
-    cloudSave();
-  }
-}
-
-function showShopping() {
-  const map = {};
-  appData.myMenu.forEach(f => f.ingredients.forEach(i => map[i.name] = (map[i.name] || 0) + 1));
-  let t = "📝 全家买菜清单\n\n";
-  for (let k in map) t += k + " × " + map[k] + "\n";
-  alert(t || "菜单为空");
-}
-
-function cookOrder() {
-  const total = appData.myMenu.reduce((s, f) => s + f.time, 0);
-  const names = appData.myMenu.map(f => f.name).join("、");
-  alert("总耗时："+total+" 分钟\n菜品："+(names||"暂无菜品"));
-}
-
-function searchFood() {
-  const v = document.getElementById("search-input").value.toLowerCase();
-  const list = appData.allFoods.filter(f => f.name.toLowerCase().includes(v));
-  let html = "";
-  list.forEach(f => {
-    html += '<div class="food-card" onclick="openDetail('+f.id+')"><img class="food-img" src="'+f.pic+'"><div class="food-info"><div class="food-name">'+f.name+'</div></div></div>';
-  });
-  document.getElementById("food-list").innerHTML = html;
-}
-
-function randomFood() {
-  const f = appData.allFoods[Math.floor(Math.random() * appData.allFoods.length)];
-  alert("🎲 随机推荐今晚吃："+f.name);
-}
-
-function changeAvatar() {
-  const i = document.createElement("input");
-  i.type = "file"; i.accept = "image/*";
-  i.onchange = e => {
-    const r = new FileReader();
-    r.onload = e => {
-      appData.avatarUrl = e.target.result;
-      cloudSave();
-      document.getElementById("avatar").style.backgroundImage = "url("+appData.avatarUrl+")";
-    };
-    r.readAsDataURL(e.target.files[0]);
-  };
-  i.click();
-}
-
-function changeBanner() {
-  const i = document.createElement("input");
-  i.type = "file"; i.accept = "image/*";
-  i.onchange = e => {
-    const r = new FileReader();
-    r.onload = e => {
-      appData.bannerUrl = e.target.result;
-      cloudSave();
-      document.getElementById("banner").style.backgroundImage = "url("+appData.bannerUrl+")";
-    };
-    r.readAsDataURL(e.target.files[0]);
-  };
-  i.click();
-}
-
-function selectFoodImage() {
-  const i = document.createElement("input");
-  i.type = "file"; i.accept = "image/*";
-  i.onchange = e => {
-    const r = new FileReader();
-    r.onload = e => {
-      appData.tempFoodImage = e.target.result;
-      document.getElementById("food-image-tip").innerText = "✅ 已手动上传图片";
-    };
-    r.readAsDataURL(e.target.files[0]);
-  };
-  i.click();
-}
-
-function updateMine() {
+// ================= MINE =================
+function updateMine(){
   document.getElementById("mine-name").innerText = appData.systemName;
-  document.getElementById("collect-count").innerText = appData.collectList.length;
-  document.getElementById("custom-count").innerText = appData.customFoods.length;
 }
 
-function saveSetting() {
-  const n = document.getElementById("set-name").value;
-  if (n) appData.systemName = n;
-  cloudSave();
-  alert("✅ 设置已全家同步");
-  goPage("mine");
-}
-
-// ✅ 修复：添加菜品后弹出提示
-function addCustomFood() {
-  const name = document.getElementById("add-name").value;
-  const cate = document.getElementById("add-cate").value;
-  const time = document.getElementById("add-time").value;
-  const ingText = document.getElementById("add-ing").value;
-  const desc = document.getElementById("add-desc").value;
-  if (!name || !cate || !time || !ingText) return alert("请等待AI生成或填完所有信息");
-
-  const ings = ingText.split(",").map(t => ({
-    name: t.replace(/[0-9个gml]/g, "").trim(),
-    unit: t.replace(/[^0-9个gml]/g, "") || "适量"
-  }));
-
-  const food = {
-    id: Date.now(),
-    name:name, 
-    category:cate, 
-    time: Number(time),
-    diff: "AI智能", 
-    cal: "未知",
-    pic: appData.tempFoodImage || getFoodAutoImg(name),
-    desc:desc, 
-    ingredients:ings,
-    steps: appData.tempSteps || ["按需制作即可"],
-    remark:"无备注"
-  };
-
-  appData.allFoods.push(food);
-  appData.customFoods.push(food);
-  appData.tempFoodImage = "";
-  appData.tempSteps = [];
-  cloudSave();
-  alert("✅ 菜品添加成功！");
-  document.getElementById("ai-food-name").value = "";
-  document.getElementById("add-name").value = "";
-  document.getElementById("add-cate").value = "";
-  document.getElementById("add-time").value = "";
-  document.getElementById("add-ing").value = "";
-  document.getElementById("add-desc").value = "";
-  document.getElementById("food-image-tip").innerText = "未上传自动用AI配图";
-  renderHome();
-}
-
-window.onload = function() {
+// ================= INIT =================
+window.onload = ()=>{
   initFoods();
   renderHome();
   renderMenu();
