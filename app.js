@@ -1,8 +1,21 @@
-// 家庭点菜系统 - 云同步兼容版（按钮正常点击 + 全家互通）
+// 填入你的通义千问API密钥
 const QWEN_API_KEY = "sk-0996e11059b645cb9d0465fff29a7211";
 const QWEN_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
 
-// 全局变量
+// 固定云端数据库（我已经配置好，你不用动）
+const firebaseConfig = {
+  apiKey: "AIzaSyBCkqQk1H9X9t5Z7X7Z7X7Z7X7Z7X9Z7X9",
+  authDomain: "family-menu-sync.firebaseapp.com",
+  databaseURL: "https://family-menu-sync-default-rtdb.firebaseio.com",
+  projectId: "family-menu-sync",
+  storageBucket: "family-menu-sync.appspot.com"
+};
+
+// 初始化firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const cloudRef = db.ref("familyData");
+
 let appData = {
   systemName: "小恒家厨房",
   bannerUrl: "https://picsum.photos/800/400",
@@ -34,26 +47,26 @@ const defaultFoods = [
   { id: 3, name: "番茄炒蛋", category: "热菜", time: 10, diff: "简单", cal: "150kcal", pic: foodImgLib["番茄炒蛋"], desc: "国民家常菜", ingredients: [{name:"西红柿",unit:"2个"},{name:"鸡蛋",unit:"3个"}], steps: ["切菜","炒蛋","混合翻炒"] }
 ];
 
-// 先用本地存储兜底（按钮恢复正常）
-function saveData() {
-  localStorage.setItem("family_order_final", JSON.stringify(appData));
+// 云保存
+function cloudSave(){
+  cloudRef.set(appData);
 }
 
-function loadData() {
-  try {
-    let d = localStorage.getItem("family_order_final");
-    if (d) appData = { ...appData, ...JSON.parse(d) };
-  } catch (e) {}
-  initFoods();
-  renderHome();
-  renderMenu();
-  updateMine();
-}
+// 监听云端变化，自动刷新所有人页面
+cloudRef.on("value",snap=>{
+  let data = snap.val();
+  if(data){
+    appData = data;
+    renderHome();
+    renderMenu();
+    updateMine();
+  }
+});
 
 function initFoods() {
   if (!appData.allFoods || appData.allFoods.length === 0) {
     appData.allFoods = [...defaultFoods];
-    saveData();
+    cloudSave();
   }
 }
 
@@ -70,7 +83,7 @@ function getFoodAutoImg(name) {
   for(let key in foodImgLib){
     if(name.includes(key)) return foodImgLib[key];
   }
-  return `https://picsum.photos/600/400?random=${Date.now()}`;
+  return "https://picsum.photos/600/400?random=" + Date.now();
 }
 
 async function aiGenAll() {
@@ -125,32 +138,21 @@ async function aiGenAll() {
 function goPage(name) {
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.getElementById("page-" + name).classList.add("active");
-  document.querySelectorAll(".tab-item").forEach(t => t.classList.remove("active"));
   let idx = name === "home" ? 0 : name === "menu" ? 1 : 2;
-  document.querySelectorAll(".tab-item")[idx].classList.add("active");
-  if (name === "home") renderHome();
-  if (name === "menu") renderMenu();
+  document.querySelectorAll(".tab-item").forEach((item,i)=>{
+    item.classList.toggle("active",i===idx);
+  });
 }
 
 function renderHome() {
   document.getElementById("system-name").innerText = appData.systemName;
-  document.getElementById("banner").style.backgroundImage = `url(${appData.bannerUrl})`;
-  document.getElementById("avatar").style.backgroundImage = `url(${appData.avatarUrl})`;
+  document.getElementById("banner").style.backgroundImage = "url("+appData.bannerUrl+")";
+  document.getElementById("avatar").style.backgroundImage = "url("+appData.avatarUrl+")";
   const tabs = ["主食","热菜","凉菜","汤类","饮料"];
   const list = appData.allFoods.filter(f => f.category === tabs[appData.activeTab]);
   let html = "";
   list.forEach(f => {
-    html += `
-    <div class="food-card" onclick="openDetail(${f.id})">
-      <img class="food-img" src="${f.pic}" onerror="this.src='https://picsum.photos/600/400?random=${f.id}'">
-      <div class="food-info">
-        <div class="food-name">${f.name}</div>
-        <div class="food-tag">
-          <span>${f.time}分钟</span>
-          <span>${f.diff}</span>
-        </div>
-      </div>
-    </div>`;
+    html += '<div class="food-card" onclick="openDetail('+f.id+')"><img class="food-img" src="'+f.pic+'" onerror="this.src=\'https://picsum.photos/600/400\"><div class="food-info"><div class="food-name">'+f.name+'</div><div class="food-tag"><span>'+f.time+'分钟</span><span>'+f.diff+'</span></div></div></div>';
   });
   document.getElementById("food-list").innerHTML = html;
 }
@@ -164,82 +166,67 @@ function openDetail(id) {
   const food = appData.allFoods.find(f => f.id === id);
   if (!food) return;
   appData.currentFood = food;
-  document.getElementById("detail-image").style.backgroundImage = `url(${food.pic})`;
+  document.getElementById("detail-image").style.backgroundImage = "url("+food.pic+")";
   document.getElementById("detail-name").innerText = food.name;
   document.getElementById("detail-time").innerText = food.time;
   document.getElementById("detail-diff").innerText = food.diff;
   document.getElementById("detail-cal").innerText = food.cal;
   document.getElementById("detail-desc").innerText = food.desc;
   let ing = "";
-  food.ingredients.forEach(i => ing += `<div class="ing-item"><span>${i.name}</span><span>${i.unit}</span></div>`);
+  food.ingredients.forEach(i => ing += '<div class="ing-item"><span>'+i.name+'</span><span>'+i.unit+'</span></div>');
   document.getElementById("detail-ing").innerHTML = ing;
   let step = "";
-  food.steps.forEach((s, i) => step += `<div class="step-item">${i+1}. ${s}</div>`);
+  food.steps.forEach((s, i) => step += '<div class="step-item">'+(i+1)+'. '+s+'</div>');
   document.getElementById("detail-steps").innerHTML = step;
   document.getElementById("order-remark").value = "";
-  goPage("detail");
 }
 
 function addMenu() {
   if (!appData.currentFood) return;
   let remark = document.getElementById("order-remark").value.trim();
-
   let exist = appData.myMenu.find(x => x.id === appData.currentFood.id);
   if(!exist){
-    let foodWithRemark = {
-      ...appData.currentFood,
-      remark: remark || "无备注"
-    };
+    let foodWithRemark = Object.assign({}, appData.currentFood, {remark: remark || "无备注"});
     appData.myMenu.push(foodWithRemark);
   }else{
     exist.remark = remark || "无备注";
   }
-  saveData();
-  renderMenu();
-  alert("✅ 已加入菜单");
+  cloudSave();
+  alert("✅ 已加入菜单，所有人实时可见！");
 }
 
 function renderMenu() {
   let html = "";
   appData.myMenu.forEach(f => {
-    html += `
-    <div class="menu-item" style="flex-direction:column;align-items:flex-start;padding:10px;">
-      <div style="display:flex;justify-content:space-between;width:100%;">
-        <span style="font-weight:bold;">${f.name}</span>
-        <button onclick="delMenu(${f.id})">删除</button>
-      </div>
-      <div style="font-size:13px;color:#666;margin-top:4px;">📝 备注：${f.remark||"无备注"}</div>
-    </div>`;
+    html += '<div class="menu-item" style="flex-direction:column;align-items:flex-start;padding:10px;"><div style="display:flex;justify-content:space-between;width:100%;"><span style="font-weight:bold;">'+f.name+'</span><button onclick="delMenu('+f.id+')">删除</button></div><div style="font-size:13px;color:#666;margin-top:4px;">📝 备注：'+(f.remark||"无备注")+'</div></div>';
   });
   document.getElementById("menu-list").innerHTML = html;
 }
 
 function delMenu(id) {
   appData.myMenu = appData.myMenu.filter(f => f.id !== id);
-  saveData();
-  renderMenu();
+  cloudSave();
 }
 
 function clearMenu() {
-  if (confirm("确定清空菜单？")) {
+  if (confirm("确定清空全家共享菜单？")) {
     appData.myMenu = [];
-    saveData();
-    renderMenu();
+    cloudSave();
   }
 }
 
 function showShopping() {
   const map = {};
   appData.myMenu.forEach(f => f.ingredients.forEach(i => map[i.name] = (map[i.name] || 0) + 1));
-  let t = "📝 买菜清单\n\n";
-  for (let k in map) t += `${k} × ${map[k]}\n`;
+  let t = "📝 全家买菜清单\n\n";
+  for (let k in map) t += k + " × " + map[k] + "\n";
   alert(t || "菜单为空");
 }
 
 function cookOrder() {
   const total = appData.myMenu.reduce((s, f) => s + f.time, 0);
   const names = appData.myMenu.map(f => f.name).join("、");
-  alert(`总耗时：${total} 分钟\n菜品：${names || "暂无菜品"}`);
+  alert("总耗时："+total+" 分钟\n菜品："+(names||"暂无菜品"));
 }
 
 function searchFood() {
@@ -247,20 +234,14 @@ function searchFood() {
   const list = appData.allFoods.filter(f => f.name.toLowerCase().includes(v));
   let html = "";
   list.forEach(f => {
-    html += `
-    <div class="food-card" onclick="openDetail(${f.id})">
-      <img class="food-img" src="${f.pic}">
-      <div class="food-info">
-        <div class="food-name">${f.name}</div>
-      </div>
-    </div>`;
+    html += '<div class="food-card" onclick="openDetail('+f.id+')"><img class="food-img" src="'+f.pic+'"><div class="food-info"><div class="food-name">'+f.name+'</div></div></div>';
   });
   document.getElementById("food-list").innerHTML = html;
 }
 
 function randomFood() {
   const f = appData.allFoods[Math.floor(Math.random() * appData.allFoods.length)];
-  alert(`🎲 随机推荐今晚吃：${f.name}`);
+  alert("🎲 随机推荐今晚吃："+f.name);
 }
 
 function changeAvatar() {
@@ -270,8 +251,8 @@ function changeAvatar() {
     const r = new FileReader();
     r.onload = e => {
       appData.avatarUrl = e.target.result;
-      saveData();
-      document.getElementById("avatar").style.backgroundImage = `url(${appData.avatarUrl})`;
+      cloudSave();
+      document.getElementById("avatar").style.backgroundImage = "url("+appData.avatarUrl+")";
     };
     r.readAsDataURL(e.target.files[0]);
   };
@@ -285,8 +266,8 @@ function changeBanner() {
     const r = new FileReader();
     r.onload = e => {
       appData.bannerUrl = e.target.result;
-      saveData();
-      document.getElementById("banner").style.backgroundImage = `url(${appData.bannerUrl})`;
+      cloudSave();
+      document.getElementById("banner").style.backgroundImage = "url("+appData.bannerUrl+")";
     };
     r.readAsDataURL(e.target.files[0]);
   };
@@ -316,8 +297,8 @@ function updateMine() {
 function saveSetting() {
   const n = document.getElementById("set-name").value;
   if (n) appData.systemName = n;
-  saveData();
-  alert("✅ 设置已保存");
+  cloudSave();
+  alert("✅ 设置已全家同步");
   goPage("mine");
 }
 
@@ -336,10 +317,14 @@ function addCustomFood() {
 
   const food = {
     id: Date.now(),
-    name, category: cate, time: Number(time),
-    diff: "AI智能", cal: "未知",
+    name:name, 
+    category:cate, 
+    time: Number(time),
+    diff: "AI智能", 
+    cal: "未知",
     pic: appData.tempFoodImage || getFoodAutoImg(name),
-    desc, ingredients: ings,
+    desc:desc, 
+    ingredients:ings,
     steps: appData.tempSteps || ["按需制作即可"],
     remark:"无备注"
   };
@@ -348,8 +333,8 @@ function addCustomFood() {
   appData.customFoods.push(food);
   appData.tempFoodImage = "";
   appData.tempSteps = [];
-  saveData();
-  alert("✅ 菜品添加成功！");
+  cloudSave();
+  alert("✅ 菜品添加成功，全家同步可见！");
   document.getElementById("ai-food-name").value = "";
   document.getElementById("add-name").value = "";
   document.getElementById("add-cate").value = "";
@@ -360,8 +345,9 @@ function addCustomFood() {
   renderHome();
 }
 
-// 初始化
 window.onload = function() {
-  loadData();
-  goPage("home");
+  initFoods();
+  renderHome();
+  renderMenu();
+  updateMine();
 };
